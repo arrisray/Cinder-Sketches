@@ -10,13 +10,14 @@
 #define AudioVertexDisplacement_VizComponent_h
 
 #include "IComponent.h"
+#include "cinder/app/App.h"
 #include "cinder/Rand.h"
 
 using namespace ci;
 using namespace ci::app;
 
 // How many particles to create. (600k default)
-const int NUM_PARTICLES = 1e6;
+const int NUM_PARTICLES = 1e4;
 
 /**
  Particle type holds information for rendering and simulation.
@@ -24,7 +25,6 @@ const int NUM_PARTICLES = 1e6;
  */
 struct Particle
 {
-    float   isActive;
     vec3	pos;
     vec3	ppos;
     vec3	home;
@@ -35,7 +35,7 @@ struct Particle
 class SceneComponent : public IComponent
 {
 public:
-    SceneComponent() {}
+    SceneComponent( App * app ) : mApp( app ) {}
     void setMagSpectrum( std::vector<float> const & spectrum );
     
     virtual void setup();
@@ -48,8 +48,8 @@ public:
     
 private:
     std::vector<float> mMagSpectrum;
+    App * mApp;
     
-    float                           mEmitterCap;
     gl::TextureRef					mSmokeTexture;
     
     // Transform Feedback
@@ -138,21 +138,19 @@ void SceneComponent::setup()
     // const float azimuth = 256.0f * M_PI / particles.size();
     // const float inclination = M_PI / particles.size();
     // const float radius = 180.0f;
-    vec3 center = vec3( getWindowCenter() + vec2( 0.0f, 40.0f ), 0.0f );
+    vec3 center = vec3( 0, 0, 0 ); // vec3( getWindowCenter() + vec2( 0.0f, 40.0f ), 0.0f );
     for( int i = 0; i < particles.size(); ++i )
     {	// assign starting values to particles.
-        float x = 0; // radius * sin( inclination * i ) * cos( azimuth * i );
-        float y = 0; // radius * cos( inclination * i );
+        float x = Rand::randFloat() * this->mApp->getWindowWidth(); // radius * sin( inclination * i ) * cos( azimuth * i );
+        float y = Rand::randFloat() * this->mApp->getWindowHeight(); // radius * cos( inclination * i );
         float z = 0; // radius * sin( inclination * i ) * sin( azimuth * i );
         
         auto &p = particles.at( i );
-        p.isActive = 0.0f;
         p.pos = center + vec3( x, y, z );
         p.home = p.pos;
-        p.ppos = p.home + Rand::randVec3() * 10.0f; // random initial velocity
-        p.damping = Rand::randFloat( 0.965f, 0.985f );
+        p.ppos = p.home + ( Rand::randVec3() ); // random initial velocity
+        p.damping = Rand::randFloat( 0.7f, 0.75f ); // 0.965f, 0.985f );
         p.color = Color( CM_HSV, lmap<float>( i, 0.0f, particles.size(), 0.0f, 0.66f ), 1.0f, 1.0f );
-        p.color.a = 0.0f;
     }
     
     // Create particle buffers on GPU and copy data into the first buffer.
@@ -173,32 +171,37 @@ void SceneComponent::setup()
         gl::enableVertexAttribArray( 2 );
         gl::enableVertexAttribArray( 3 );
         gl::enableVertexAttribArray( 4 );
-        gl::enableVertexAttribArray( 5 );
-        gl::vertexAttribPointer( 0, 1, GL_FLOAT, GL_FALSE, sizeof(Particle), (const GLvoid*)offsetof(Particle, isActive) );
-        gl::vertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, sizeof(Particle), (const GLvoid*)offsetof(Particle, pos) );
-        gl::vertexAttribPointer( 2, 4, GL_FLOAT, GL_FALSE, sizeof(Particle), (const GLvoid*)offsetof(Particle, color) );
-        gl::vertexAttribPointer( 3, 3, GL_FLOAT, GL_FALSE, sizeof(Particle), (const GLvoid*)offsetof(Particle, ppos) );
-        gl::vertexAttribPointer( 4, 3, GL_FLOAT, GL_FALSE, sizeof(Particle), (const GLvoid*)offsetof(Particle, home) );
-        gl::vertexAttribPointer( 5, 1, GL_FLOAT, GL_FALSE, sizeof(Particle), (const GLvoid*)offsetof(Particle, damping) );
+        gl::vertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, sizeof(Particle), (const GLvoid*)offsetof(Particle, pos) );
+        gl::vertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, sizeof(Particle), (const GLvoid*)offsetof(Particle, ppos) );
+        gl::vertexAttribPointer( 2, 3, GL_FLOAT, GL_FALSE, sizeof(Particle), (const GLvoid*)offsetof(Particle, home) );
+        gl::vertexAttribPointer( 3, 4, GL_FLOAT, GL_FALSE, sizeof(Particle), (const GLvoid*)offsetof(Particle, color) );
+        gl::vertexAttribPointer( 4, 1, GL_FLOAT, GL_FALSE, sizeof(Particle), (const GLvoid*)offsetof(Particle, damping) );
     }
     
     // Load our update program.
     // Match up our attribute locations with the description we gave.
     mUpdateProg = gl::GlslProg::create( gl::GlslProg::Format().vertex( loadAsset( "particleUpdate.vs" ) )
         .feedbackFormat( GL_INTERLEAVED_ATTRIBS )
-        .feedbackVaryings( { "isActive", "position", "pposition", "home", "color", "damping" } )
-        .attribLocation( "iIsActive", 0 )
-        .attribLocation( "iPosition", 1 )
-        .attribLocation( "iColor", 2 )
-        .attribLocation( "iPPosition", 3 )
-        .attribLocation( "iHome", 4 )
-        .attribLocation( "iDamping", 5 )
+        .feedbackVaryings( { "position", "pposition", "home", "color", "damping" } )
+                                       .attribLocation( "iPosition", 0 )
+                                       .attribLocation( "iPPosition", 1 )
+                                       .attribLocation( "iHome", 2 )
+                                       .attribLocation( "iColor", 3 )
+                                       .attribLocation( "iDamping", 4 )
         );
     
     // Create a default color shader.
     // mRenderProg = gl::getStockShader( gl::ShaderDef().color() );
-    mRenderProg = gl::GlslProg::create( gl::GlslProg::Format().vertex( loadAsset( "render.vs" ) )
-        .fragment( loadAsset( "render.fs" ) ) );
+    mRenderProg = gl::GlslProg::create( gl::GlslProg::Format()
+                                       .vertex( loadAsset( "render.vs" ) )
+                                       .feedbackFormat( GL_INTERLEAVED_ATTRIBS )
+                                       .feedbackVaryings( { "position", "pposition", "home", "color", "damping" } )
+                                       .attribLocation( "iPosition", 0 )
+                                       .attribLocation( "iPPosition", 1 )
+                                       .attribLocation( "iHome", 2 )
+                                       .attribLocation( "iColor", 3 )
+                                       .attribLocation( "iDamping", 4 )
+                                       .fragment( loadAsset( "render.fs" ) ) );
 }
 
 void SceneComponent::update()
@@ -207,8 +210,9 @@ void SceneComponent::update()
     gl::ScopedGlslProg prog( mUpdateProg );
     gl::ScopedState rasterizer( GL_RASTERIZER_DISCARD, true );	// turn off fragment stage
     
-    ++mEmitterCap;
-    mUpdateProg->uniform( "emitterCap", mEmitterCap );
+    static float uTime = 0.0f;
+    uTime += ( 1.0f / 60.0f ) * 0.001f;
+    mUpdateProg->uniform( "uTime", uTime );
     
     // Bind the source data (Attributes refer to specific buffers).
     gl::ScopedVao source( mAttributes[mSourceIndex] );

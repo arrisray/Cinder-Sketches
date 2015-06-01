@@ -179,8 +179,8 @@
 			isa = PBXGroup;
 			children = (
 				430CB5DB1B1A3C7B00DB655F /* particleUpdate.vs */,
-				430CB5DC1B1A3C7B00DB655F /* render.fs */,
 				430CB5DD1B1A3C7B00DB655F /* render.vs */,
+				430CB5DC1B1A3C7B00DB655F /* render.fs */,
 				430CB5DE1B1A3C7B00DB655F /* sample.mp3 */,
 				430CB5DF1B1A3C7B00DB655F /* smoke_blur.png */,
 			);

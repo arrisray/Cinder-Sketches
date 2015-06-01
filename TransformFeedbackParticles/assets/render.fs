@@ -9,9 +9,6 @@ out vec4 FragColor;
 
 void main()
 {
-    if( color.a < 0.01 )
-        discard;
-    
-    FragColor = texture( ParticleTex, gl_PointCoord );
-    // FragColor *= color;
+    FragColor = texture( ParticleTex, gl_PointCoord ) * color;
+    FragColor.a *= 0.5;
 }

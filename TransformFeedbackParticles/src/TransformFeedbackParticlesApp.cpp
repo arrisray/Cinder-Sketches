@@ -10,9 +10,27 @@ using namespace ci;
 using namespace ci::app;
 using namespace std;
 
+// NOISE GENERATION, e.g. Perlin Noise, fBm, etc.
+//
+// Google Code, "fractalterraingeneration" - https://code.google.com/p/fractalterraingeneration/wiki/Fractional_Brownian_Motion - Investigation and implementation of various PGC techniques.
+// Cinder Docs, "Enter Perlin Noise" - http://libcinder.org/docs/v0.8.4/hello_cinder_chapter4.html
+// StackOverflow, "GLSL Noise" - http://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
+
+
+// PARTICLES
+//
 // null program, "A GPU Approach to Particle Physics" - http://nullprogram.com/blog/2014/06/29/ - Technical breakdown of techniques.
 // Roblox, "Explore the Endless Possibilities of Custom Particles" - http://blog.roblox.com/2015/04/explore-the-endless-possibilities-of-custom-particles/ - List of particle system variables.
 
+// FOURIER TRANSFORMS
+//
+// Float AudioProgramming, "DFT Spectral Analysis with OpenGL" - https://christianfloisand.wordpress.com/2013/06/11/dft-spectral-analysis-with-opengl - Apply DFT analysis to particle system attributes.
+// jackschaedler.github.io, "SEEING CIRCLES, SINES, AND SIGNALS: A COMPACT PRIMER ON DIGITAL SIGNAL PROCESSING" - "http://jackschaedler.github.io/circles-sines-signals/
+// Cinder Docs, "MonitorNode and MonitorSpectralNode" - http://libcinder.org/docs/dev/guide_audio.html
+
+// SCANLINES
+//
+// Soulwire, "Plasmatic Isosurface: WebGL / GLSL plasma simulation running on the GPU" - http://soulwire.github.io/Plasmatic-Isosurface/
 
 class TransformFeedbackParticlesApp : public App
 {
@@ -36,7 +54,7 @@ void TransformFeedbackParticlesApp::setup()
 {
     this->mAudio.reset( new AudioComponent() );
     this->mCam.reset( new CamComponent( this ) );
-    this->mScene.reset( new SceneComponent() );
+    this->mScene.reset( new SceneComponent( this ) );
     
     this->mComponents.push_back( this->mAudio );
     this->mComponents.push_back( this->mCam );
