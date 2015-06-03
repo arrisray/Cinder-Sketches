@@ -12,10 +12,11 @@ using namespace std;
 
 // NOISE GENERATION, e.g. Perlin Noise, fBm, etc.
 //
-// Google Code, "fractalterraingeneration" - https://code.google.com/p/fractalterraingeneration/wiki/Fractional_Brownian_Motion - Investigation and implementation of various PGC techniques.
+// Google Code, "fractalterraingeneration: Fractional Brownian Motion" - https://code.google.com/p/fractalterraingeneration/wiki/Fractional_Brownian_Motion - Investigation and implementation of various PGC techniques.
+// Google Code, "fractalterraingeneration: Simplex Noise" - https://code.google.com/p/fractalterraingeneration/wiki/Simplex_Noise
 // Cinder Docs, "Enter Perlin Noise" - http://libcinder.org/docs/v0.8.4/hello_cinder_chapter4.html
 // StackOverflow, "GLSL Noise" - http://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
-
+// Catlike Coding, "Simplex Noise, keeping it simple" - http://catlikecoding.com/unity/tutorials/simplex-noise/ - Unity tutorial.
 
 // PARTICLES
 //
@@ -27,6 +28,15 @@ using namespace std;
 // Float AudioProgramming, "DFT Spectral Analysis with OpenGL" - https://christianfloisand.wordpress.com/2013/06/11/dft-spectral-analysis-with-opengl - Apply DFT analysis to particle system attributes.
 // jackschaedler.github.io, "SEEING CIRCLES, SINES, AND SIGNALS: A COMPACT PRIMER ON DIGITAL SIGNAL PROCESSING" - "http://jackschaedler.github.io/circles-sines-signals/
 // Cinder Docs, "MonitorNode and MonitorSpectralNode" - http://libcinder.org/docs/dev/guide_audio.html
+// https://dadorran.wordpress.com/2014/02/20/plotting-frequency-spectrum-using-matlab/
+// http://gribblelab.org/scicomp/09_Signals_and_sampling.html#sec-2 - Good illustrated breakdown of sampling theory.
+
+// BEAT DETECTION
+//
+// http://hans.fugal.net/blog/2009/04/02/dft-magnitudepower-spectra/
+// http://archive.gamedev.net/archive/reference/programming/features/beatdetection/
+// http://www.badlogicgames.com/wordpress/?cat=18
+// http://mziccard.me/2015/05/28/beats-detection-algorithms-1/
 
 // SCANLINES
 //
@@ -93,6 +103,8 @@ void TransformFeedbackParticlesApp::mouseDrag( MouseEvent event )
 void TransformFeedbackParticlesApp::update()
 {
     this->mScene->setMagSpectrum( this->mAudio->getMagSpectrum() );
+    this->mScene->setBeats( this->mAudio->getBeats() );
+    this->mScene->setVolume( this->mAudio->getVolume() );
     
     for( auto c : this->mComponents )
     {

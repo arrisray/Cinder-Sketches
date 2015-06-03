@@ -1,18 +1,28 @@
 #version 150 core
 
 uniform float emitterCap;
+uniform float beats1;
+uniform float beats2;
+uniform float beats3;
+uniform float beats4;
+// uniform float beats5;
+uniform float activity;
 
 in vec3   iPosition;
 in vec3   iPPostion;
 in vec3   iHome;
 in vec4   iColor;
 in float  iDamping;
+in float  iGroupId;
+in float  iSize;
 
 out vec3  position;
 out vec3  pposition;
 out vec3  home;
 out vec4  color;
 out float damping;
+out float groupId;
+out float size;
 
 const float dt2 = ( 1.0 / (60.0 * 60.0) );
 
@@ -295,6 +305,35 @@ float snoise(vec3 v)
 
 // ~ NOISE
 
+float getBeat()
+{
+    if( groupId == 0 )
+        return beats1;
+    if( groupId == 1 )
+        return beats2;
+    if( groupId == 2 )
+        return beats3;
+    if( groupId == 3 )
+        return beats4;
+    /*
+    if( groupId == 4 )
+        return beats5;
+    //*/
+    return 0;
+}
+
+void applyBeat()
+{
+    // Apply decay if the beat descends below a peak
+    float beat = getBeat();
+    if( beat < color.a )
+    {
+        beat = mix( color.a, beat, 0.05 );
+    }
+    
+    color.a = beat;
+}
+
 void main()
 {
     position =  iPosition;
@@ -302,6 +341,8 @@ void main()
     damping =   iDamping;
     home =      iHome;
     color =     iColor;
+    groupId =   iGroupId;
+    size =      iSize;
     
     float xNoise = snoise(vec3(position.xy, uTime));
     float yNoise = snoise(vec3(position.yz, uTime));
@@ -313,6 +354,7 @@ void main()
     vec3 vel = (position - pposition) * damping;
     pposition = position;
     vec3 acc = ( (home - position) * 32.0f );
-    position += ( vel + acc * dt2 ) + vec3( xNoise, yNoise, zNoise );
+    position += ( vel + acc * dt2 ) + ( vec3( xNoise, yNoise, zNoise ) * activity );
     
+    applyBeat();
 }

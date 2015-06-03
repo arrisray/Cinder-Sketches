@@ -12,12 +12,13 @@
 #include "IComponent.h"
 #include "cinder/app/App.h"
 #include "cinder/Rand.h"
+#include "cinder/CinderMath.h"
 
 using namespace ci;
 using namespace ci::app;
 
-// How many particles to create. (600k default)
-const int NUM_PARTICLES = 1e4;
+// How many particles to create.
+const int NUM_PARTICLES = 1024;
 
 /**
  Particle type holds information for rendering and simulation.
@@ -30,13 +31,17 @@ struct Particle
     vec3	home;
     ColorA  color;
     float	damping;
+    float   groupId;
+    float   size;
 };
 
 class SceneComponent : public IComponent
 {
 public:
-    SceneComponent( App * app ) : mApp( app ) {}
+    SceneComponent( App * app );
     void setMagSpectrum( std::vector<float> const & spectrum );
+    void setBeats( std::vector<float> const & beats );
+    void setVolume( float volume );
     
     virtual void setup();
     virtual void mouseDown( MouseEvent event ) {}
@@ -44,10 +49,13 @@ public:
     virtual void keyDown( KeyEvent event ) {}
     virtual void update();
     virtual void draw();
-    virtual void resize() {}
+    virtual void resize();
     
 private:
+    int mNumGroups;
+    float mVolume;
     std::vector<float> mMagSpectrum;
+    std::vector<float> mBeats;
     App * mApp;
     
     gl::TextureRef					mSmokeTexture;
@@ -69,51 +77,12 @@ private:
     // ~Transform Feedback
     
     void loadTexture();
-    void drawGrid( float size, float st );
-    void drawDiscs( float size, float step );
 };
 
-
-void SceneComponent::drawDiscs( float size, float step )
+SceneComponent::SceneComponent( App * app ) :
+    mApp( app ),
+    mNumGroups( 4 )
 {
-    gl::color( 1.0f, 0.0f, 0.0f );
-    
-    const float COLS = ( size / step ) * 2;
-    const float GRID_OFFSET_X = size;
-    const float GRID_OFFSET_Y = 0.0f;
-    const float DISC_OFFSET = step * 0.5f;
-    
-    for( int i = 0; i < this->mMagSpectrum.size(); ++i )
-    {
-        int col = i % (int)COLS;
-        int row = i / (int)COLS;
-        
-        float x = ( step * col ) + DISC_OFFSET - GRID_OFFSET_X;
-        float y = ( step * row ) + DISC_OFFSET - GRID_OFFSET_Y;
-        
-        gl::drawSolidCircle( vec2( x, y ), log10( this->mMagSpectrum[ i ] * 1000.0f ) );
-    }
-}
-
-void SceneComponent::drawGrid( float size, float step )
-{
-    gl::color( Color( 0.5f, 0.5f, 0.5f) );
-    
-    // draw grid
-    glLineWidth( 0.5f );
-    for( float i = -size; i <= size; i += step)
-    {
-        gl::drawLine( vec3( i, 0.f, -size), vec3( i, 0.f, size));
-        gl::drawLine( vec3(-size, 0.f, i), vec3( size, 0.f, i));
-    }
-    
-    // draw bold center lines
-    glLineWidth( 1.f );
-    gl::color( Color( 0.75f, 0.75f, 0.75f ) );
-    
-    gl::drawLine( vec3( 0.f, 0.f, -size), vec3( 0.f, 0.f, size ) );
-    gl::drawLine( vec3(-size, 0.f, 0.f), vec3( size, 0.f, 0.f ) );
-    glLineWidth( 1.f );
 }
 
 void SceneComponent::loadTexture()
@@ -121,6 +90,16 @@ void SceneComponent::loadTexture()
     gl::Texture::Format mTextureFormat;
     mTextureFormat.magFilter( GL_LINEAR ).minFilter( GL_LINEAR ).mipmap().internalFormat( GL_RGBA );
     mSmokeTexture = gl::Texture::create( loadImage( loadAsset( "smoke_blur.png" ) ), mTextureFormat );
+}
+
+void SceneComponent::setVolume( float volume )
+{
+    this->mVolume = volume;
+}
+
+void SceneComponent::setBeats( const std::vector<float> & beats )
+{
+    this->mBeats.assign( beats.begin(), beats.end() );
 }
 
 void SceneComponent::setMagSpectrum( const std::vector<float> &spectrum )
@@ -135,22 +114,38 @@ void SceneComponent::setup()
     // Create initial particle layout.
     std::vector<Particle> particles;
     particles.assign( NUM_PARTICLES, Particle() );
-    // const float azimuth = 256.0f * M_PI / particles.size();
-    // const float inclination = M_PI / particles.size();
-    // const float radius = 180.0f;
-    vec3 center = vec3( 0, 0, 0 ); // vec3( getWindowCenter() + vec2( 0.0f, 40.0f ), 0.0f );
-    for( int i = 0; i < particles.size(); ++i )
-    {	// assign starting values to particles.
-        float x = Rand::randFloat() * this->mApp->getWindowWidth(); // radius * sin( inclination * i ) * cos( azimuth * i );
-        float y = Rand::randFloat() * this->mApp->getWindowHeight(); // radius * cos( inclination * i );
-        float z = 0; // radius * sin( inclination * i ) * sin( azimuth * i );
+    const float azimuth = 256.0f * M_PI / particles.size();
+    const float inclination = M_PI / particles.size();
+    const float radius = 180.0f;
+    vec3 center = vec3( 0, 0, 0 ); //
+    // vec3 center = vec3( getWindowCenter() + vec2( 0.0f, 40.0f ), 0.0f );
+    
+    int groupSize = particles.size() / this->mNumGroups;
+    for( int i = 0, j = 0; i < particles.size(); ++i )
+    {
+        if( i > 0 && i % groupSize == 0 ) { ++j; }
+        
+        // assign starting values to particles.
+        /*
+        float x = radius * sin( inclination * i ) * cos( azimuth * i );
+        float y = radius * cos( inclination * i );
+        float z = radius * sin( inclination * i ) * sin( azimuth * i );
+        /*/
+        float x = Rand::randFloat() * this->mApp->getWindowWidth(); //
+        float y = Rand::randFloat() * this->mApp->getWindowHeight(); //
+        float z = 0;
+        //*/
         
         auto &p = particles.at( i );
+        p.groupId = j;
         p.pos = center + vec3( x, y, z );
         p.home = p.pos;
         p.ppos = p.home + ( Rand::randVec3() ); // random initial velocity
-        p.damping = Rand::randFloat( 0.7f, 0.75f ); // 0.965f, 0.985f );
-        p.color = Color( CM_HSV, lmap<float>( i, 0.0f, particles.size(), 0.0f, 0.66f ), 1.0f, 1.0f );
+        p.damping = Rand::randFloat( 0.7f, 0.95f ); // 0.965f, 0.985f );
+        // p.color = Color( CM_HSV, lmap<float>( i, 0.0f, particles.size(), 0.0f, 0.66f ), 1.0f, 1.0f );
+        p.size = Rand::randFloat( 2.0f, 64.0f );
+        float hue = lmap<float>( ( (float)j / (float)this->mNumGroups ), 0.0f, (float)this->mNumGroups, 0.14f, 0.4f );
+        p.color = Color( CM_HSV, hue, 1.0f, math<float>::clamp( 32.0f / p.size ) );
     }
     
     // Create particle buffers on GPU and copy data into the first buffer.
@@ -171,37 +166,50 @@ void SceneComponent::setup()
         gl::enableVertexAttribArray( 2 );
         gl::enableVertexAttribArray( 3 );
         gl::enableVertexAttribArray( 4 );
+        gl::enableVertexAttribArray( 5 );
+        gl::enableVertexAttribArray( 6 );
         gl::vertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, sizeof(Particle), (const GLvoid*)offsetof(Particle, pos) );
         gl::vertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, sizeof(Particle), (const GLvoid*)offsetof(Particle, ppos) );
         gl::vertexAttribPointer( 2, 3, GL_FLOAT, GL_FALSE, sizeof(Particle), (const GLvoid*)offsetof(Particle, home) );
         gl::vertexAttribPointer( 3, 4, GL_FLOAT, GL_FALSE, sizeof(Particle), (const GLvoid*)offsetof(Particle, color) );
         gl::vertexAttribPointer( 4, 1, GL_FLOAT, GL_FALSE, sizeof(Particle), (const GLvoid*)offsetof(Particle, damping) );
+        gl::vertexAttribPointer( 5, 1, GL_FLOAT, GL_FALSE, sizeof(Particle), (const GLvoid*)offsetof(Particle, groupId) );
+        gl::vertexAttribPointer( 6, 1, GL_FLOAT, GL_FALSE, sizeof(Particle), (const GLvoid*)offsetof(Particle, size) );
     }
     
     // Load our update program.
     // Match up our attribute locations with the description we gave.
     mUpdateProg = gl::GlslProg::create( gl::GlslProg::Format().vertex( loadAsset( "particleUpdate.vs" ) )
         .feedbackFormat( GL_INTERLEAVED_ATTRIBS )
-        .feedbackVaryings( { "position", "pposition", "home", "color", "damping" } )
+        .feedbackVaryings( { "position", "pposition", "home", "color", "damping", "groupId", "size" } )
                                        .attribLocation( "iPosition", 0 )
                                        .attribLocation( "iPPosition", 1 )
                                        .attribLocation( "iHome", 2 )
                                        .attribLocation( "iColor", 3 )
                                        .attribLocation( "iDamping", 4 )
+                                       .attribLocation( "iGroupId", 5 )
+                                       .attribLocation( "iSize", 6 )
         );
     
-    // Create a default color shader.
+    // Load our render program.
     // mRenderProg = gl::getStockShader( gl::ShaderDef().color() );
     mRenderProg = gl::GlslProg::create( gl::GlslProg::Format()
                                        .vertex( loadAsset( "render.vs" ) )
                                        .feedbackFormat( GL_INTERLEAVED_ATTRIBS )
-                                       .feedbackVaryings( { "position", "pposition", "home", "color", "damping" } )
+                                       .feedbackVaryings( { "position", "pposition", "home", "color", "damping", "groupId", "size" } )
                                        .attribLocation( "iPosition", 0 )
                                        .attribLocation( "iPPosition", 1 )
                                        .attribLocation( "iHome", 2 )
                                        .attribLocation( "iColor", 3 )
                                        .attribLocation( "iDamping", 4 )
+                                       .attribLocation( "iGroupId", 5 )
+                                       .attribLocation( "iSize", 6 )
                                        .fragment( loadAsset( "render.fs" ) ) );
+}
+
+void SceneComponent::resize()
+{
+    this->setup();
 }
 
 void SceneComponent::update()
@@ -213,6 +221,22 @@ void SceneComponent::update()
     static float uTime = 0.0f;
     uTime += ( 1.0f / 60.0f ) * 0.001f;
     mUpdateProg->uniform( "uTime", uTime );
+    
+    for( int i = 0; i < this->mBeats.size(); ++i )
+    {
+        this->mBeats[ i ] = this->mBeats[ i ] + 0.1f;
+        // std::cout << this->mBeats[ i ] << " ";
+    }
+    // std::cout<<std::endl;
+    mUpdateProg->uniform( "beats1", this->mBeats[ 0 ] );
+    mUpdateProg->uniform( "beats2", this->mBeats[ 1 ] );
+    mUpdateProg->uniform( "beats3", this->mBeats[ 2 ] );
+    mUpdateProg->uniform( "beats4", this->mBeats[ 3 ] );
+    // mUpdateProg->uniform( "beats5", this->mBeats[ 4 ] );
+    
+    float activity = powf( lmap<float>( this->mVolume, 0.0f, 1.0f, 0.1f, 10.0f ), 2.0f );
+    // std::cout << this->mVolume << " => " << activity << std::endl;
+    mUpdateProg->uniform( "activity", activity );
     
     // Bind the source data (Attributes refer to specific buffers).
     gl::ScopedVao source( mAttributes[mSourceIndex] );
