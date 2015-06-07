@@ -1,10 +1,11 @@
 #version 150 core
 
 uniform float emitterCap;
-uniform float beats1;
-uniform float beats2;
-uniform float beats3;
-uniform float beats4;
+uniform float beats[5];
+// uniform float beats1;
+// uniform float beats2;
+// uniform float beats3;
+// uniform float beats4;
 // uniform float beats5;
 uniform float activity;
 
@@ -305,30 +306,13 @@ float snoise(vec3 v)
 
 // ~ NOISE
 
-float getBeat()
-{
-    if( groupId == 0 )
-        return beats1;
-    if( groupId == 1 )
-        return beats2;
-    if( groupId == 2 )
-        return beats3;
-    if( groupId == 3 )
-        return beats4;
-    /*
-    if( groupId == 4 )
-        return beats5;
-    //*/
-    return 0;
-}
-
 void applyBeat()
 {
     // Apply decay if the beat descends below a peak
-    float beat = getBeat();
+    float beat = beats[ int(groupId) ];
     if( beat < color.a )
     {
-        beat = mix( color.a, beat, 0.05 );
+        beat = mix( color.a, beat, 0.065 );
     }
     
     color.a = beat;

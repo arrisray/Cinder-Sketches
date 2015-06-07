@@ -109,19 +109,20 @@ void AudioComponent::setup()
     // add a Gain to reduce the volume
     mGain = ctx->makeNode( new audio::GainNode( 0.5f ) );
     
-    /*
-     std::vector<DeviceRef> audioDevices = ci::audio::Device::getOutputDevices();
-     for( size_t i = 0; i < audioDevices.size(); ++i )
-     {
-     std::cout << audioDevices[ i ]->getName() << std::endl;
-     }
-     */
+    //*
+    std::vector<DeviceRef> audioDevices = ci::audio::Device::getOutputDevices();
+    for( size_t i = 0; i < audioDevices.size(); ++i )
+    {
+        std::cout << audioDevices[ i ]->getName() << std::endl;
+    }
+    //*/
     
     // The InputDeviceNode is platform-specific, so you create it using a special method on the Context:
     mInputDeviceNode = ctx->createInputDeviceNode();
     
     // Create headphones output
     auto device = ci::audio::Device::findDeviceByName( "Built-in Output" );
+    // auto device = ci::audio::Device::findDeviceByName( "Soundflower (2ch)" );
     ci::audio::OutputDeviceNodeRef output = ctx->createOutputDeviceNode( device );
     ctx->setOutput( output );
     
@@ -158,7 +159,7 @@ void AudioComponent::keyDown( KeyEvent event )
         else
         {
             mBufferPlayerNode->start();
-            mBufferPlayerNode->seek( lastBufferReadPos );
+            // mBufferPlayerNode->seek( lastBufferReadPos );
         }
     }
 }
@@ -189,8 +190,8 @@ void AudioComponent::update()
     {
         float instantEnergy = instantEnergies[ i ];
         std::vector<float> & energyHistory = this->mEnergyHistory[ i ];
+        if( energyHistory.size() + 1 > this->mHistorySize ) { energyHistory.erase( energyHistory.begin() ); }
         energyHistory.push_back( instantEnergy );
-        if( energyHistory.size() > this->mHistorySize ) { energyHistory.erase( energyHistory.begin() ); }
         
         // std::cout << i << ":" << instantEnergy << " ";
         

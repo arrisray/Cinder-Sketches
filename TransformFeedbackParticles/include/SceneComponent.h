@@ -46,12 +46,13 @@ public:
     virtual void setup();
     virtual void mouseDown( MouseEvent event ) {}
     virtual void mouseDrag( MouseEvent event ) {}
-    virtual void keyDown( KeyEvent event ) {}
+    virtual void keyDown( KeyEvent event );
     virtual void update();
     virtual void draw();
     virtual void resize();
     
 private:
+    bool mIsFullscreen;
     int mNumGroups;
     float mVolume;
     std::vector<float> mMagSpectrum;
@@ -80,6 +81,7 @@ private:
 };
 
 SceneComponent::SceneComponent( App * app ) :
+    mIsFullscreen( false ),
     mApp( app ),
     mNumGroups( 4 )
 {
@@ -114,11 +116,7 @@ void SceneComponent::setup()
     // Create initial particle layout.
     std::vector<Particle> particles;
     particles.assign( NUM_PARTICLES, Particle() );
-    const float azimuth = 256.0f * M_PI / particles.size();
-    const float inclination = M_PI / particles.size();
-    const float radius = 180.0f;
-    vec3 center = vec3( 0, 0, 0 ); //
-    // vec3 center = vec3( getWindowCenter() + vec2( 0.0f, 40.0f ), 0.0f );
+    vec3 center = vec3( 0, 0, 0 );
     
     int groupSize = particles.size() / this->mNumGroups;
     for( int i = 0, j = 0; i < particles.size(); ++i )
@@ -126,15 +124,9 @@ void SceneComponent::setup()
         if( i > 0 && i % groupSize == 0 ) { ++j; }
         
         // assign starting values to particles.
-        /*
-        float x = radius * sin( inclination * i ) * cos( azimuth * i );
-        float y = radius * cos( inclination * i );
-        float z = radius * sin( inclination * i ) * sin( azimuth * i );
-        /*/
         float x = Rand::randFloat() * this->mApp->getWindowWidth(); //
         float y = Rand::randFloat() * this->mApp->getWindowHeight(); //
         float z = 0;
-        //*/
         
         auto &p = particles.at( i );
         p.groupId = j;
@@ -142,7 +134,6 @@ void SceneComponent::setup()
         p.home = p.pos;
         p.ppos = p.home + ( Rand::randVec3() ); // random initial velocity
         p.damping = Rand::randFloat( 0.7f, 0.95f ); // 0.965f, 0.985f );
-        // p.color = Color( CM_HSV, lmap<float>( i, 0.0f, particles.size(), 0.0f, 0.66f ), 1.0f, 1.0f );
         p.size = Rand::randFloat( 2.0f, 64.0f );
         float hue = lmap<float>( ( (float)j / (float)this->mNumGroups ), 0.0f, (float)this->mNumGroups, 0.14f, 0.4f );
         p.color = Color( CM_HSV, hue, 1.0f, math<float>::clamp( 32.0f / p.size ) );
@@ -212,6 +203,15 @@ void SceneComponent::resize()
     this->setup();
 }
 
+void SceneComponent::keyDown( KeyEvent event )
+{
+    if( event.getCode() == KeyEvent::KEY_f )
+    {
+        this->mIsFullscreen = !this->mIsFullscreen;
+        setFullScreen( this->mIsFullscreen );
+    }
+}
+
 void SceneComponent::update()
 {
     // Update particles on the GPU
@@ -225,17 +225,10 @@ void SceneComponent::update()
     for( int i = 0; i < this->mBeats.size(); ++i )
     {
         this->mBeats[ i ] = this->mBeats[ i ] + 0.1f;
-        // std::cout << this->mBeats[ i ] << " ";
     }
-    // std::cout<<std::endl;
-    mUpdateProg->uniform( "beats1", this->mBeats[ 0 ] );
-    mUpdateProg->uniform( "beats2", this->mBeats[ 1 ] );
-    mUpdateProg->uniform( "beats3", this->mBeats[ 2 ] );
-    mUpdateProg->uniform( "beats4", this->mBeats[ 3 ] );
-    // mUpdateProg->uniform( "beats5", this->mBeats[ 4 ] );
+    mUpdateProg->uniform( "beats", this->mBeats.data(), this->mBeats.size() );
     
     float activity = powf( lmap<float>( this->mVolume, 0.0f, 1.0f, 0.1f, 10.0f ), 2.0f );
-    // std::cout << this->mVolume << " => " << activity << std::endl;
     mUpdateProg->uniform( "activity", activity );
     
     // Bind the source data (Attributes refer to specific buffers).
@@ -257,8 +250,6 @@ void SceneComponent::draw()
 {
     gl::clear( Color( 0, 0, 0 ) );
     gl::setMatricesWindowPersp( getWindowSize() );
-    // gl::enableDepthRead();
-    // gl::enableDepthWrite();
     gl::enableAlphaBlending();
     
     gl::ScopedVao           vao( mAttributes[mSourceIndex] );
